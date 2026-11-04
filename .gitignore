@@ -1,0 +1,13 @@
+chromium/
+depot_tools/
+chromium-gost-upstream/
+out/
+build-output/
+*.log
+*.deb
+*.rpm
+*.msi
+*.exe
+*.zip
+*.tar.gz
+__pycache__/
