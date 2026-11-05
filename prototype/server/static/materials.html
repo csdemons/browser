@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06316b">
+  <title>Atom Browser — Поиск материалов (демо)</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="orbits" aria-hidden="true"><span class="orbit-one"></span><span class="orbit-two"></span><span class="orbit-three"></span></div>
+  <div class="layout">
+    <header class="brand">
+      <img src="/kurchatov-emblem.png" alt="Эмблема НИЦ «Курчатовский институт»" width="75" height="95">
+      <div class="brand-title"><span>НАЦИОНАЛЬНЫЙ</span><span>ИССЛЕДОВАТЕЛЬСКИЙ ЦЕНТР</span><strong>«КУРЧАТОВСКИЙ ИНСТИТУТ»</strong></div>
+      <a class="lab-badge home-back" href="/">← Корпоративная главная</a>
+    </header>
+    <main class="panel">
+      <div class="intro"><div><p class="eyebrow">АТОМ • ПОИСК</p><h1>База материалов</h1><p class="subtitle">Поиск веществ, сплавов и материалов — демонстрационный интерфейс</p></div></div>
+      <div class="search-region">
+        <label class="search-label" for="search">Поиск материалов и веществ</label>
+        <div class="search-line">
+          <div class="input-shell"><span class="search-ico" aria-hidden="true">⌕</span><input id="search" autocomplete="off" spellcheck="false" placeholder="Например: титан, никель, сплав ВТ6" aria-controls="suggestions" aria-autocomplete="list" aria-expanded="false"><button id="clear" class="clear" type="button" aria-label="Очистить поиск" hidden>×</button></div>
+          <button id="search-button" class="primary" type="button">Найти <span aria-hidden="true">→</span></button>
+        </div>
+        <div id="suggestions" class="suggestions" role="listbox" aria-label="Подсказки поиска" hidden></div>
+        <div id="typing" class="typing" role="status" aria-live="polite" hidden>Ожидание завершения ввода…</div>
+      </div>
+      <div class="results-top"><div><h2>Результаты поиска</h2><p id="summary" class="muted" aria-live="polite">Подготавливаем результаты…</p></div><div class="server-pill">API • Gzip • Пагинация</div></div>
+      <section id="results" class="results" aria-label="Результаты" aria-busy="true">
+        <div class="skeleton" role="status" aria-label="Загружаем результаты"><span class="sk-square"></span><div class="sk-lines"><span></span><span></span><span></span></div></div>
+        <div class="skeleton" aria-hidden="true"><span class="sk-square"></span><div class="sk-lines"><span></span><span></span><span></span></div></div>
+        <div class="skeleton" aria-hidden="true"><span class="sk-square"></span><div class="sk-lines"><span></span><span></span><span></span></div></div>
+        <div class="skeleton" aria-hidden="true"><span class="sk-square"></span><div class="sk-lines"><span></span><span></span><span></span></div></div>
+        <div class="skeleton" aria-hidden="true"><span class="sk-square"></span><div class="sk-lines"><span></span><span></span><span></span></div></div>
+      </section>
+      <nav class="pagination" aria-label="Страницы результатов"><button id="prev" type="button" disabled>← Назад</button><span id="page-status" aria-live="polite">Страница 1</span><button id="next" type="button" disabled>Далее →</button></nav>
+      <div class="bottom"><div id="network" class="network">Запросы API: 0</div><span>Серые заглушки • 400 мс debounce • отмена устаревших запросов</span></div>
+    </main>
+    <footer>НИЦ «Курчатовский институт» · Демонстрационный интерфейс · Наука — это красиво</footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Optional reverse proxy in front of the Go API. Use HTTPS/TLS on public-facing edge.
+# For this prototype, the Go server itself already gzip-compresses API JSON.
+# Keep gzip off at the proxy for /api/ if using upstream compression.
+server {
+    listen 127.0.0.1:8081;
+    server_name localhost;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+    }
+}
+
+# On a production reverse proxy, choose ONE compression layer:
+# - nginx gzip (e.g. gzip on; gzip_types application/json text/css application/javascript;)
+# - or Brotli where the appropriate NGINX module is installed.
+# Never assume that stock NGINX includes Brotli.
