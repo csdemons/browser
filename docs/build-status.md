@@ -1,27 +1,29 @@
-# Atom Browser — Build Status
+# Atom Browser 0.1.0 Alpha вЂ” Build Status
 
-## Baseline Chromium
+Chromium: 156.0.8078.79 (a21ce95c24ce3964416f09ae1862f53f319eb4d0)
+BoringSSL: 2ea3200c3a3ec176613ab7a0b9a4ffc6db846120
 
-Version: 156.0.8078.79
-Platform: Ubuntu 22.04 / WSL2 / x86-64
-Build system: GN + Autoninja
-Compiler: Chromium Clang
-Build directory: out/AtomBaseline
+## Windows x64
+- Native build: successful, out/AtomWin
+- Build mode: Developer Build, is_component_build=false
+- GN args: config/windows/args-AtomWin.gn
+- Installer: $SetupName
+- Size: 201966950 bytes
+- SHA256: 386125fd1edcaa9ac5c841df7c3a5c7e4d96f0f49827bfb34f45c26e0c35f06e
+- Inno Setup: 6.7.3
+- Installed path: C:\Program Files\Atom Browser
+- Profile: %LOCALAPPDATA%\Atom Browser\User Data
 
-## Build result
+## Verified
+- Installed browser starts.
+- Product identity and separate profile.
+- Corporate new-tab page and branding.
+- Sandbox: Renderer Lockdown/Untrusted; Storage Lockdown/Untrusted; Network Service AppContainer; GPU Low integrity.
 
-Status: SUCCESS
-Steps: 19540
-Duration: 4h 32m 35s
-Parallel jobs: 6
+## Pending
+- GOST TLS interoperability tests.
+- CryptoPro CSP, CAdES, Rutoken and JaCarta.
+- Astra Linux 1.8 runtime/ABI/sandbox validation.
+- Code signing, updater and production hardening.
 
-## Next stage
-
-- Runtime smoke tests
-- GOST patch compatibility checks
-- Security review
-- GOST TLS integration
-- Atom Browser branding
-- Astra Linux 1.8 compatibility tests
-
-GOST integration has not been built or validated yet.
+Generated MIDL TLB files are excluded. CryptoPro SDK headers are not published pending license review.

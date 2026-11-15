@@ -1,0 +1,10 @@
+* text=auto
+*.ps1 text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.gn text eol=lf
+*.gni text eol=lf
+*.iss text eol=lf
+*.grd text eol=lf
+*.grdp text eol=lf
