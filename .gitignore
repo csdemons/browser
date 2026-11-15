@@ -1,8 +1,12 @@
-chromium/
-depot_tools/
-chromium-gost-upstream/
-out/
-build-output/
+# Build directories at repository root
+/chromium/
+/depot_tools/
+/chromium-gost-upstream/
+/out/
+/build-output/
+/dist/
+
+# Build artifacts
 *.log
 *.deb
 *.rpm
@@ -11,3 +15,18 @@ build-output/
 *.zip
 *.tar.gz
 __pycache__/
+
+# Private keys and credentials
+*.key
+*.pfx
+*.p12
+id_rsa
+id_ed25519
+secrets/
+private-backup/
+
+# User data
+User Data/
+profiles/
+crashpad/
+*.dmp

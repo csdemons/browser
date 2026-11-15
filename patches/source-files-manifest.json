@@ -1,0 +1,110 @@
+[
+    {
+        "repository":  "chromium",
+        "path":  "chrome/app/theme/chromium/win/atom_browser.ico",
+        "sha256":  "7087d1ea4b16b09a069a09b81e0f75da244440d9647e94f2a296072b30549a8d",
+        "size_bytes":  101852
+    },
+    {
+        "repository":  "chromium",
+        "path":  "chrome/browser/resources/bundled_ca/russian_trusted_root_ca.der",
+        "sha256":  "d26d2d0231b7c39f92cc738512ba54103519e4405d68b5bd703e9788ca8ecf31",
+        "size_bytes":  1478
+    },
+    {
+        "repository":  "chromium",
+        "path":  "chrome/browser/resources/bundled_ca/russian_trusted_sub_ca.der",
+        "sha256":  "bbbde2103e790b999ec62bd03cf625a5a2e7c316e10afe6a490eedead8b3fd9b",
+        "size_bytes":  1862
+    },
+    {
+        "repository":  "chromium",
+        "path":  "chrome/browser/resources/bundled_ca/russian_trusted_sub_ca_2024.der",
+        "sha256":  "2155785036c900dbb5f1bb2a1569c80c55595bd6bf94867a29bbddbc7d88a3f2",
+        "size_bytes":  1772
+    },
+    {
+        "repository":  "chromium",
+        "path":  "chrome/browser/resources/new_tab_page/atom_home.css",
+        "sha256":  "6c08c39ac4e3189e622d0c8826d3e8e45b7da50d89447d89d3c97157a377ca75",
+        "size_bytes":  7171
+    },
+    {
+        "repository":  "chromium",
+        "path":  "chrome/browser/resources/new_tab_page/atom_kurchatov_emblem.png",
+        "sha256":  "9be7895d2d0534df92843cf95d5c3a64bad791ebda6618d0b0e9146e45c66976",
+        "size_bytes":  3753
+    },
+    {
+        "repository":  "chromium",
+        "path":  "components/resources/default_100_percent/atom_browser/favicon_product.png",
+        "sha256":  "8fcbbb5c372c6337c0d11087f1e6376c4472ed30d97f96b90e0f30ee54d0212e",
+        "size_bytes":  947
+    },
+    {
+        "repository":  "chromium",
+        "path":  "components/resources/default_100_percent/atom_browser/product_logo.png",
+        "sha256":  "98e580d110721fe634c84a1e8d6b6aedc4bb69e88d37a969bc6baad99287eafc",
+        "size_bytes":  2940
+    },
+    {
+        "repository":  "chromium",
+        "path":  "components/resources/default_100_percent/atom_browser/product_logo_white.png",
+        "sha256":  "98e580d110721fe634c84a1e8d6b6aedc4bb69e88d37a969bc6baad99287eafc",
+        "size_bytes":  2940
+    },
+    {
+        "repository":  "chromium",
+        "path":  "components/resources/default_200_percent/atom_browser/favicon_product.png",
+        "sha256":  "e48e27773a65e759b2a3c0ec582c1f4c8cc731557c5568455a65a1861fa9b83a",
+        "size_bytes":  2770
+    },
+    {
+        "repository":  "chromium",
+        "path":  "components/resources/default_200_percent/atom_browser/product_logo.png",
+        "sha256":  "0df9da674dee584a80c89b365f60516515d61f1b7ba32f870140de54d0e9adcc",
+        "size_bytes":  8872
+    },
+    {
+        "repository":  "chromium",
+        "path":  "components/resources/default_200_percent/atom_browser/product_logo_white.png",
+        "sha256":  "0df9da674dee584a80c89b365f60516515d61f1b7ba32f870140de54d0e9adcc",
+        "size_bytes":  8872
+    },
+    {
+        "repository":  "chromium",
+        "path":  "net/ssl/gostssl_util.cc",
+        "sha256":  "2d293450fd6cf52b24a77d1cb63e5c9ab54271824a7d0e4b434b1fd6a6d47627",
+        "size_bytes":  1351
+    },
+    {
+        "repository":  "chromium",
+        "path":  "net/ssl/gostssl_util.h",
+        "sha256":  "bdad8015639605cfca7d7d7c79f02204a961650eb9ed87c7881268ead92b610b",
+        "size_bytes":  413
+    },
+    {
+        "repository":  "chromium",
+        "path":  "third_party/boringssl/capix.hpp",
+        "sha256":  "3735c9cf10a52573ab9b38e971dbe11952711f666ef8adca1c3506aa67e202eb",
+        "size_bytes":  18504
+    },
+    {
+        "repository":  "chromium",
+        "path":  "third_party/boringssl/gostssl.cpp",
+        "sha256":  "4be4452be97de763fcaa7ade14fc83dfcf1989d2fe64b8589094ebf7f87b3665",
+        "size_bytes":  37122
+    },
+    {
+        "repository":  "chromium",
+        "path":  "third_party/boringssl/msspi.cpp",
+        "sha256":  "65b36d21bc67aa273da85692cb263c6893b907ae67e4b6433c45eed7c30d4d0e",
+        "size_bytes":  134964
+    },
+    {
+        "repository":  "chromium",
+        "path":  "third_party/boringssl/msspi.h",
+        "sha256":  "fe04fe00fe1b86b905c015503d0dd181405fdccc80a0d094f0f178069668e510",
+        "size_bytes":  8928
+    }
+]

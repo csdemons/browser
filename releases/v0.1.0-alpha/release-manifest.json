@@ -1,0 +1,19 @@
+{
+    "product":  "Atom Browser",
+    "release":  "0.1.0-alpha",
+    "platform":  "Windows x64",
+    "chromium_version":  "156.0.8078.79",
+    "chromium_base_commit":  "a21ce95c24ce3964416f09ae1862f53f319eb4d0",
+    "boringssl_base_commit":  "2ea3200c3a3ec176613ab7a0b9a4ffc6db846120",
+    "build_type":  "Developer Build; is_component_build=false",
+    "windows_os_tested":  "Windows 10 22H2, build 19045.6456",
+    "artifact":  "AtomBrowserSetup-0.1.0-alpha-x64.exe",
+    "size_bytes":  201966950,
+    "sha256":  "386125fd1edcaa9ac5c841df7c3a5c7e4d96f0f49827bfb34f45c26e0c35f06e",
+    "installer":  "Inno Setup 6.7.3",
+    "sandbox":  "Verified on installed Windows build: Renderer Lockdown/Untrusted; Network Service AppContainer",
+    "gost_tls":  "Functional verification pending",
+    "cryptopro":  "Functional verification pending",
+    "code_signed":  false,
+    "release_channel":  "alpha"
+}

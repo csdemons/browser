@@ -1,0 +1,769 @@
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index 0d8241c..9d14384 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -6982,6 +6982,11 @@ BSSL_NAMESPACE_END
+ 
+ #endif
+ 
++#ifndef NO_GOSTSSL
++#define SSL_R_TLS_GOST_REQUIRED 3072
++#define SSL_R_TLS_GOST_PROXY 3073
++#endif // GOSTSSL
++
+ #define SSL_R_APP_DATA_IN_HANDSHAKE 100
+ #define SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT 101
+ #define SSL_R_BAD_ALERT 102
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index ab32bb9..391da3a 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -344,6 +344,34 @@ bool tls12_add_verify_sigalgs(const SSL_HANDSHAKE *hs, CBB *out) {
+       return false;
+     }
+   }
++#ifndef NO_GOSTSSL
++if( ( gostssl() & ( 1 << 3 ) ) && hs->max_version >= TLS1_3_VERSION )
++  {
++    if(
++      !CBB_add_u16(out, 0x0709) || // gostr34102012_256a
++      !CBB_add_u16(out, 0x070A) || // gostr34102012_256b
++      !CBB_add_u16(out, 0x070B) || // gostr34102012_256c
++      !CBB_add_u16(out, 0x070C) || // gostr34102012_256d
++      !CBB_add_u16(out, 0x070D) || // gostr34102012_512a
++      !CBB_add_u16(out, 0x070E) || // gostr34102012_512b
++      !CBB_add_u16(out, 0x070F)    // gostr34102012_512c
++      ) {
++      return false;
++    }
++  }
++  if( ( gostssl() & ( 1 << 3 ) ) && hs->max_version >= TLS1_3_VERSION )
++  {
++    if(
++      !CBB_add_u16(out, 0x0840) || // TLS_INTRINSIC_HASH GOST_R_3410_12_256_IANA_DESC_BYTE
++      !CBB_add_u16(out, 0x0841) || // TLS_INTRINSIC_HASH GOST_R_3410_12_512_IANA_DESC_BYTE
++      !CBB_add_u16(out, 0xEEEE) || // GOST_R_3411_12_256_DESC_BYTE GOST_R_3410_12_256_DESC_BYTE
++      !CBB_add_u16(out, 0xEFEF) || // GOST_R_3411_12_512_DESC_BYTE GOST_R_3410_12_512_DESC_BYTE
++      !CBB_add_u16(out, 0xEDED)    // GOST_R_3411_DESC_BYTE GOST_R_3410_DESC_BYTE
++      ) {
++      return false;
++    }
++  }
++#endif // GOSTSSL
+   return true;
+ }
+ 
+@@ -2753,6 +2781,23 @@ static bool ext_supported_groups_add_clienthello(const SSL_HANDSHAKE *hs,
+     }
+   }
+ 
++#ifndef NO_GOSTSSL
++  if( ( gostssl() & ( 1 << 3 ) ) && hs->max_version >= TLS1_3_VERSION )
++  {
++    if(
++      !CBB_add_u16(&groups_bytes, 0x22) || // TLSEXT_elliptic_curve_gostr34102012_256a
++      !CBB_add_u16(&groups_bytes, 0x23) || // TLSEXT_elliptic_curve_gostr34102012_256b
++      !CBB_add_u16(&groups_bytes, 0x24) || // TLSEXT_elliptic_curve_gostr34102012_256c
++      !CBB_add_u16(&groups_bytes, 0x25) || // TLSEXT_elliptic_curve_gostr34102012_256d
++      !CBB_add_u16(&groups_bytes, 0x26) || // TLSEXT_elliptic_curve_gostr34102012_512a
++      !CBB_add_u16(&groups_bytes, 0x27) || // TLSEXT_elliptic_curve_gostr34102012_512b
++      !CBB_add_u16(&groups_bytes, 0x28)    // TLSEXT_elliptic_curve_gostr34102012_512c
++      ) {
++      return false;
++    }
++  }
++#endif // GOSTSSL
++
+   return CBB_flush(out_compressible);
+ }
+ 
+diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
+index 3d57f34..420f9e1 100644
+--- a/ssl/handshake_client.cc
++++ b/ssl/handshake_client.cc
+@@ -570,6 +570,14 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
+     return ssl_hs_error;
+   }
+ 
++#ifndef NO_GOSTSSL
++  if (gostssl()) {
++    if (gostssl_tls_gost_required(ssl, SSL_get_cipher_by_value(server_hello.cipher_suite))) {
++      return ssl_hs_error;
++    }
++  }
++#endif // GOSTSSL
++
+   if (!ssl_supports_version(hs, server_version)) {
+     OPENSSL_PUT_ERROR(SSL, SSL_R_UNSUPPORTED_PROTOCOL);
+     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_PROTOCOL_VERSION);
+diff --git a/ssl/internal.h b/ssl/internal.h
+index 375fe6a..7530ab3 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -221,6 +221,13 @@ BSSL_NAMESPACE_BEGIN
+ #define SSL_kPSK 0x00000004u
+ #define SSL_kGENERIC 0x00000008u
+ 
++#ifndef NO_GOSTSSL
++#define SSL_kGOST 0x00010000L
++#define SSL_aGOST 0x00010000L
++#define SSL_eGOST 0x00010000L
++#define SSL_iGOST 0x00010000L
++#endif  // GOSTSSL
++
+ // Bits for `algorithm_auth` (server authentication).
+ #define SSL_aRSA_SIGN 0x00000001u
+ #define SSL_aRSA_DECRYPT 0x00000002u
+@@ -3966,6 +3973,40 @@ void ssl_reset_error_state(SSLImpl *ssl);
+ // current state of the error queue.
+ void ssl_set_read_error(SSLImpl *ssl);
+ 
++BSSL_NAMESPACE_END
++
++#ifndef NO_GOSTSSL
++extern "C" {
++//
++int boring_BIO_read(SSL *s, void *data, int len);
++int boring_BIO_write(SSL *s, const void *data, int len);
++void boring_ERR_clear_error(void);
++void boring_ERR_put_error(int, int, int, const char *file, unsigned line);
++const SSL_CIPHER *boring_SSL_get_cipher_by_value(uint16_t value);
++int boring_hook_set_certs(SSL *s, const uint8_t **bufs, size_t *lens, size_t count);
++int boring_hook_verify_peer(SSL *s);
++int boring_hook_ca_names(SSL *s, const uint8_t **bufs, size_t *lens, size_t count);
++int boring_hook_connected(SSL *s, const uint8_t *alpn, size_t alpn_len, uint16_t version, uint16_t cipher_id, uint16_t group_id);
++int boring_hook_finalized(SSL *s);
++//
++int gostssl();
++//
++int gostssl_init();
++int gostssl_connect( SSL * s, int * is_gost );
++int gostssl_read( SSL * s, void * buf, int len, int * is_gost );
++int gostssl_peek( SSL * s, void * buf, int len, int * is_gost );
++int gostssl_write( SSL * s, const void * buf, int len, int * is_gost );
++int gostssl_shutdown( SSL * s, int * is_gost );
++void gostssl_free( SSL * s );
++int gostssl_tls_gost_required( SSL * s, const SSL_CIPHER * cipher );
++void gostssl_boring_hello( SSL * s, const char * data, size_t len );
++void gostssl_server_proxy( SSL * s, const char * data, size_t len );
++//
++}
++#endif // GOSTSSL
++
++BSSL_NAMESPACE_BEGIN
++
+ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+  public:
+   explicit SSLContext(const SSL_METHOD *ssl_method);
+diff --git a/ssl/s3_both.cc b/ssl/s3_both.cc
+index 10e0ad2..a374db7 100644
+--- a/ssl/s3_both.cc
++++ b/ssl/s3_both.cc
+@@ -242,6 +242,17 @@ int tls_flush(SSLImpl *ssl) {
+       return -1;
+     }
+ 
++#ifndef NO_GOSTSSL
++    if (gostssl()) {
++      if (ssl->s3->hs != nullptr && ssl->s3->hs->new_cipher == nullptr) {
++        gostssl_boring_hello(
++            ssl,
++            ssl->s3->pending_flight->data + ssl->s3->pending_flight_offset,
++            written);
++      }
++    }
++#endif  // GOSTSSL
++
+     ssl->s3->pending_flight_offset += static_cast<uint32_t>(written);
+   }
+ 
+diff --git a/ssl/ssl_buffer.cc b/ssl/ssl_buffer.cc
+index 9cb1298..84a8338 100644
+--- a/ssl/ssl_buffer.cc
++++ b/ssl/ssl_buffer.cc
+@@ -155,6 +155,11 @@ static int tls_read_buffer_extend_to(SSLImpl *ssl, size_t len) {
+       ssl->s3->rwstate = SSL_ERROR_WANT_READ;
+       return ret;
+     }
++#ifndef NO_GOSTSSL
++    if( gostssl() && ssl->s3->hs != nullptr && ssl->s3->hs->new_cipher == nullptr ) {
++      gostssl_server_proxy( ssl, (const char *)buf->data() + buf->size(), ret );
++    }
++#endif // GOSTSSL
+     buf->DidWrite(static_cast<size_t>(ret));
+   }
+ 
+diff --git a/ssl/ssl_cipher.cc b/ssl/ssl_cipher.cc
+index be2e725..0f049d9 100644
+--- a/ssl/ssl_cipher.cc
++++ b/ssl/ssl_cipher.cc
+@@ -78,6 +78,20 @@ static constexpr SSL_CIPHER kCiphers[] = {
+         SSL_HANDSHAKE_MAC_DEFAULT,
+     },
+ 
++#ifndef NO_GOSTSSL
++    /* Cipher 81 (GOSTSSL) */
++    {
++        "GOST2001-GOST89-GOST89",
++        "TLS_GOSTR341001_WITH_28147_CNT_IMIT",
++        0x03000081,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++#endif // GOSTSSL
++
+     // PSK cipher suites.
+ 
+     // Cipher 8C
+@@ -320,6 +334,94 @@ static constexpr SSL_CIPHER kCiphers[] = {
+ 
+     // ChaCha20-Poly1305 cipher suites.
+ 
++#ifndef NO_GOSTSSL
++
++    /* Cipher C100 (GOSTSSL) */
++    {
++        "GOST2012-GOST15K-GOST15K",
++        "TLS_GOSTR341112_256_WITH_KUZNYECHIK_CTR_OMAC",
++        0x0300C100,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++    /* Cipher C101 (GOSTSSL) */
++    {
++        "GOST2012-GOST15M-GOST15M",
++        "TLS_GOSTR341112_256_WITH_MAGMA_CTR_OMAC",
++        0x0300C101,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++    /* Cipher C102 (GOSTSSL) */
++    {
++        "IANA-GOST2012-GOST8912-GOST8912",
++        "TLS_GOSTR341112_256_WITH_28147_CNT_IMIT",
++        0x0300C102,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++    /* Cipher C103 (GOSTSSL) */
++    {
++        "TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_L",
++        "TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_L",
++        0x0300C103,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++    /* Cipher C104 (GOSTSSL) */
++    {
++        "TLS_GOSTR341112_256_WITH_MAGMA_MGM_L",
++        "TLS_GOSTR341112_256_WITH_MAGMA_MGM_L",
++        0x0300C104,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++    /* Cipher C105 (GOSTSSL) */
++    {
++        "TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_S",
++        "TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_S",
++        0x0300C105,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++    /* Cipher C106 (GOSTSSL) */
++    {
++        "TLS_GOSTR341112_256_WITH_MAGMA_MGM_S",
++        "TLS_GOSTR341112_256_WITH_MAGMA_MGM_S",
++        0x0300C106,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++#endif // GOSTSSL
++
+     // Cipher CCA8
+     {
+         TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+@@ -356,6 +458,22 @@ static constexpr SSL_CIPHER kCiphers[] = {
+         SSL_HANDSHAKE_MAC_SHA256,
+     },
+ 
++#ifndef NO_GOSTSSL
++
++    /* Cipher FF85 (GOSTSSL) */
++    {
++        "GOST2012-GOST8912-GOST8912",
++        "TLS_GOSTR341112_256_WITH_28147_CNT_IMIT",
++        0x0300FF85,
++        SSL_kGOST,
++        SSL_aGOST,
++        SSL_eGOST,
++        SSL_iGOST,
++        SSL_HANDSHAKE_MAC_SHA256,
++    },
++
++#endif // GOSTSSL
++
+ };
+ 
+ Span<const SSL_CIPHER> AllCiphers() { return kCiphers; }
+@@ -1154,6 +1272,21 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+       SSL_CIPHER_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+       SSL_CIPHER_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+   };
++#ifndef NO_GOSTSSL
++  static const uint16_t kGOSTCiphers[] = {
++      0xC100, // TLS_GOSTR341112_256_WITH_KUZNYECHIK_CTR_OMAC
++      0xC101, // TLS_GOSTR341112_256_WITH_MAGMA_CTR_OMAC
++      0xC102, // TLS_GOSTR341112_256_WITH_28147_CNT_IMIT_IANA
++      0xFF85, // TLS_GOSTR341112_256_WITH_28147_CNT_IMIT
++      0x0081, // TLS_GOSTR341001_WITH_28147_CNT_IMIT
++  };
++  static const uint16_t kGOST13Ciphers[] = {
++      0xC103, // TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_L
++      0xC105, // TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_S
++      0xC104, // TLS_GOSTR341112_256_WITH_MAGMA_MGM_L
++      0xC106, // TLS_GOSTR341112_256_WITH_MAGMA_MGM_S
++  };
++#endif // GOSTSSL
+   static const uint16_t kChaChaCiphers[] = {
+       SSL_CIPHER_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+       SSL_CIPHER_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+@@ -1178,8 +1311,14 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+   };
+ 
+   // Set up a linked list of ciphers.
++#ifndef NO_GOSTSSL
++  CIPHER_ORDER co_list[std::size(kGOSTCiphers) + std::size(kGOST13Ciphers) +
++                       std::size(kAESCiphers) + std::size(kChaChaCiphers) +
++                       std::size(kLegacyCiphers)];
++#else // GOSTSSL
+   CIPHER_ORDER co_list[std::size(kAESCiphers) + std::size(kChaChaCiphers) +
+                        std::size(kLegacyCiphers)];
++#endif // GOSTSSL
+   for (size_t i = 0; i < std::size(co_list); i++) {
+     co_list[i].next = i + 1 < std::size(co_list) ? &co_list[i + 1] : nullptr;
+     co_list[i].prev = i == 0 ? nullptr : &co_list[i - 1];
+@@ -1194,6 +1333,16 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+   // TODO(crbug.com/boringssl/29): We should also set up equipreference groups
+   // as a server.
+   size_t num = 0;
++#ifndef NO_GOSTSSL
++  for (uint16_t id : kGOST13Ciphers) {
++    co_list[num++].cipher = SSL_get_cipher_by_value(id);
++    assert(co_list[num - 1].cipher != nullptr);
++  }
++  for (uint16_t id : kGOSTCiphers) {
++    co_list[num++].cipher = SSL_get_cipher_by_value(id);
++    assert(co_list[num - 1].cipher != nullptr);
++  }
++#endif // GOSTSSL
+   const bool has_aes_hw = EVP_has_aes_hardware();
+   if (has_aes_hw) {
+     for (uint16_t id : kAESCiphers) {
+@@ -1219,6 +1368,32 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+   static_assert(std::size(co_list) + NumTLS13Ciphers() == std::size(kCiphers),
+                 "Not all ciphers are included in the cipher order");
+ 
++#ifndef NO_GOSTSSL
++  if( gostssl() )
++  {
++    if( ( gostssl() & ( 1 << 3 ) ) == 0 )
++    {
++      ssl_cipher_apply_rule( 0xC103, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++      ssl_cipher_apply_rule( 0xC104, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++      ssl_cipher_apply_rule( 0xC105, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++      ssl_cipher_apply_rule( 0xC106, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    }
++  }
++  else
++  {
++    ssl_cipher_apply_rule( 0xC100, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    ssl_cipher_apply_rule( 0xC101, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    ssl_cipher_apply_rule( 0xC102, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    ssl_cipher_apply_rule( 0xFF85, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    ssl_cipher_apply_rule( 0x0081, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++
++    ssl_cipher_apply_rule( 0xC103, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    ssl_cipher_apply_rule( 0xC104, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    ssl_cipher_apply_rule( 0xC105, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++    ssl_cipher_apply_rule( 0xC106, nullptr, CIPHER_KILL, -1, 0, &head, &tail );
++  }
++#endif // GOSTSSL
++
+   // If the rule_string begins with DEFAULT, apply the default rule before
+   // using the (possibly available) additional rules.
+   const char *rule_p = rule_str;
+@@ -1456,6 +1631,9 @@ int SSL_CIPHER_get_kx_nid(const SSL_CIPHER *cipher) {
+     case SSL_kRSA:
+       return NID_kx_rsa;
+     case SSL_kECDHE:
++#ifndef NO_GOSTSSL
++    case SSL_kGOST:
++#endif // GOSTSSL
+       return NID_kx_ecdhe;
+     case SSL_kPSK:
+       return NID_kx_psk;
+@@ -1472,6 +1650,9 @@ int SSL_CIPHER_get_auth_nid(const SSL_CIPHER *cipher) {
+     case SSL_aRSA_SIGN:
+       return NID_auth_rsa;
+     case SSL_aECDSA:
++#ifndef NO_GOSTSSL
++    case SSL_aGOST:
++#endif // GOSTSSL
+       return NID_auth_ecdsa;
+     case SSL_aPSK:
+       return NID_auth_psk;
+@@ -1595,6 +1776,9 @@ int SSL_CIPHER_get_bits(const SSL_CIPHER *cipher, int *out_alg_bits) {
+ 
+     case SSL_AES256:
+     case SSL_AES256GCM:
++#ifndef NO_GOSTSSL
++    case SSL_eGOST:
++#endif // GOSTSSL
+     case SSL_CHACHA20POLY1305:
+       alg_bits = 256;
+       strength_bits = 256;
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index b59029f..0c947e8 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -371,6 +371,179 @@ static int ssl_session_cmp(const SSL_SESSION *a, const SSL_SESSION *b) {
+   return Span(FromOpaque(a)->session_id) == FromOpaque(b)->session_id ? 0 : 1;
+ }
+ 
++#ifndef NO_GOSTSSL
++int boring_BIO_read(SSL *s_opaque, void *data, int len) {
++  auto *s = FromOpaque(s_opaque);
++  return BIO_read(s->rbio.get(), data, len);
++}
++
++int boring_BIO_write(SSL *s_opaque, const void *data, int len) {
++  auto *s = FromOpaque(s_opaque);
++  return BIO_write(s->wbio.get(), data, len);
++}
++
++void boring_ERR_clear_error(void) { ERR_clear_error(); }
++
++void boring_ERR_put_error(int a, int b, int c, const char *file,
++                          unsigned line) {
++  ERR_put_error(a, b, c, file, line);
++}
++
++const SSL_CIPHER *boring_SSL_get_cipher_by_value(uint16_t value) {
++  return SSL_get_cipher_by_value(value);
++}
++
++// (ssl_parse_client_CA_list)
++int boring_hook_ca_names(SSL *ssl_opaque, const uint8_t **bufs, size_t *lens,
++                            size_t count) {
++  auto *ssl = FromOpaque(ssl_opaque);
++  UniquePtr<STACK_OF(CRYPTO_BUFFER)> ret(sk_CRYPTO_BUFFER_new_null());
++
++  if (!ret)
++    return 0;
++
++  for (size_t i = 0; i < count; i++) {
++    UniquePtr<CRYPTO_BUFFER> buffer(
++        CRYPTO_BUFFER_new(bufs[i], lens[i], ssl->ctx->pool.get()));
++
++    if (!buffer || !PushToStack(ret.get(), std::move(buffer)))
++      return 0;
++  }
++
++  if (!ssl->ctx->x509_method->check_CA_list(ret.get()))
++    return 0;
++
++  ssl->s3->hs->cert_request = true;
++  ssl->s3->hs->ca_names = std::move(ret);
++
++  return 1;
++}
++
++int boring_hook_verify_peer(SSL* ssl_opaque)
++{
++  auto *ssl = FromOpaque(ssl_opaque);
++  SSL_HANDSHAKE* hs = ssl->s3->hs.get();
++  uint8_t alert = SSL_AD_CERTIFICATE_UNKNOWN;
++  enum ssl_verify_result_t ret = ssl_verify_invalid;
++
++  if (hs->config->custom_verify_callback != nullptr) {
++    ret = hs->config->custom_verify_callback(ssl_opaque, &alert);
++    switch (ret) {
++    case ssl_verify_ok:
++      hs->new_session->verify_result = X509_V_OK;
++      break;
++    case ssl_verify_invalid:
++      // If |SSL_VERIFY_NONE|, the error is non-fatal, but we keep the
++      // result.
++      if (hs->config->verify_mode == SSL_VERIFY_NONE) {
++        ERR_clear_error();
++        ret = ssl_verify_ok;
++      }
++      hs->new_session->verify_result =
++        X509_V_ERR_APPLICATION_VERIFICATION;
++      break;
++    case ssl_verify_retry:
++      break;
++    }
++  }
++
++  if (ret == ssl_verify_invalid) {
++    ssl->s3->rwstate = SSL_NOTHING;
++    OPENSSL_PUT_ERROR(SSL, SSL_R_CERTIFICATE_VERIFY_FAILED);
++    return 0;
++  }
++
++  if (ret == ssl_verify_retry) {
++    ssl->s3->rwstate = SSL_ERROR_WANT_CERTIFICATE_VERIFY;
++    hs->wait = ssl_hs_ok;
++    return -1;
++  }
++
++  ssl->s3->rwstate = SSL_NOTHING;
++  return 1;
++}
++
++int boring_hook_finalized(SSL* ssl_opaque)
++{
++  auto *ssl = FromOpaque(ssl_opaque);
++  ssl->s3->established_session =
++      std::move(ssl->s3->hs->new_session);
++  ssl->s3->hs->new_session.reset();
++  ssl->s3->established_session->ssl_version = ssl->s3->version;
++
++  // SSL_CB_HANDSHAKE_DONE
++  if (ssl->info_callback != NULL)
++    ssl->info_callback(ssl_opaque, SSL_CB_HANDSHAKE_DONE, 1);
++  else if (ssl->ctx->info_callback != NULL)
++    ssl->ctx->info_callback(ssl_opaque, SSL_CB_HANDSHAKE_DONE, 1);
++
++  ssl->s3->hs->handshake_finalized = true;
++  ssl->s3->initial_handshake_complete = true;
++  ssl->s3->key_update_pending = true;
++
++  return 1;
++}
++
++int boring_hook_set_certs(SSL *ssl_opaque, const uint8_t **bufs, size_t *lens, size_t count)
++{
++  auto *ssl = FromOpaque(ssl_opaque);
++  ssl->s3->version = TLS1_2_VERSION; // will be overridden in boring_hook_connected
++
++  if (ssl_get_new_session(ssl->s3->hs.get()) <= 0)
++    return 0;
++
++  UniquePtr<STACK_OF(CRYPTO_BUFFER)> ret(sk_CRYPTO_BUFFER_new_null());
++  if (!ret)
++    return 0;
++
++  for (size_t i = 0; i < count; i++) {
++    UniquePtr<CRYPTO_BUFFER> buffer(CRYPTO_BUFFER_new(
++      bufs[i], lens[i], ssl->ctx->pool.get()));
++
++    if (!buffer || !PushToStack(ret.get(), std::move(buffer)))
++      return 0;
++  }
++
++  ssl->s3->hs->new_session->certs = std::move(ret);
++  return 1;
++}
++
++int boring_hook_connected(SSL *ssl_opaque, const uint8_t *alpn, size_t alpn_len, uint16_t version, uint16_t cipher_id, uint16_t group_id)
++{
++  auto *ssl = FromOpaque(ssl_opaque);
++  SSL_HANDSHAKE *hs = ssl->s3->hs.get();
++
++  if (!hs->new_session)
++    return 0;
++
++  // ALPN (ssl_negotiate_alpn)
++  {
++    if (!ssl->s3->alpn_selected.CopyFrom(
++      Span<uint8_t>((uint8_t*)alpn, alpn_len)))
++      return 0;
++  }
++
++  // VERSION + CIPHER + GROUP_ID
++  {
++    const SSL_CIPHER* cipher = SSL_get_cipher_by_value(cipher_id);
++    if (!cipher)
++      return 0;
++
++    ssl->s3->version = version;
++    hs->new_session->ssl_version = version;
++    hs->new_session->cipher = cipher;
++    hs->new_session->group_id = group_id;
++  }
++
++  return 1;
++}
++
++int gostssl() {
++  return gostssl_init();
++}
++
++#endif // GOSTSSL
++
+ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
+     : RefCounted(CheckSubClass()),
+       method(ssl_method->method),
+@@ -594,7 +767,16 @@ SSL_CONFIG::~SSL_CONFIG() {
+   }
+ }
+ 
++#ifndef NO_GOSTSSL
++void SSL_free(SSL *ssl) {
++  if (ssl && gostssl()) {
++    gostssl_free(ssl);
++  }
++  Delete(FromOpaque(ssl));
++}
++#else   // GOSTSSL
+ void SSL_free(SSL *ssl) { Delete(FromOpaque(ssl)); }
++#endif  // GOSTSSL
+ 
+ void SSL_set_connect_state(SSL *ssl) {
+   auto *ssl_impl = FromOpaque(ssl);
+@@ -726,6 +908,15 @@ int SSL_provide_quic_data(SSL *ssl, enum ssl_encryption_level_t level,
+ int SSL_do_handshake(SSL *ssl) {
+   auto *ssl_impl = FromOpaque(ssl);
+   ssl_reset_error_state(ssl_impl);
++#ifndef NO_GOSTSSL
++  if (gostssl()) {
++    int is_gost;
++    int ret_gost;
++    ret_gost = gostssl_connect(ssl, &is_gost);
++    if (is_gost)
++      return ret_gost;
++  }
++#endif  // GOSTSSL
+ 
+   if (ssl_impl->do_handshake == nullptr) {
+     OPENSSL_PUT_ERROR(SSL, SSL_R_CONNECTION_TYPE_NOT_SET);
+@@ -745,6 +936,18 @@ int SSL_do_handshake(SSL *ssl) {
+       ssl_impl, ssl_impl->server ? SSL_CB_ACCEPT_EXIT : SSL_CB_CONNECT_EXIT,
+       ret);
+   if (ret <= 0) {
++#ifndef NO_GOSTSSL
++  if( gostssl() ){
++    if( ERR_GET_REASON(ERR_peek_error()) == SSL_R_TLS_GOST_PROXY ){
++      int is_gost;
++      int ret_gost;
++      ssl_reset_error_state( ssl_impl );
++      ret_gost = gostssl_connect( ssl, &is_gost );
++      if( is_gost )
++        return ret_gost;
++    }
++  }
++#endif // GOSTSSL
+     return ret;
+   }
+ 
+@@ -920,6 +1123,15 @@ static int ssl_read_impl(SSLImpl *ssl) {
+ 
+ int SSL_read(SSL *ssl, void *buf, int num) {
+   auto *ssl_impl = FromOpaque(ssl);
++#ifndef NO_GOSTSSL
++  if (gostssl()) {
++    int is_gost;
++    int ret_gost;
++    ret_gost = gostssl_read(ssl, buf, num, &is_gost);
++    if (is_gost)
++      return ret_gost;
++  }
++#endif  // GOSTSSL
+   int ret = SSL_peek(ssl_impl, buf, num);
+   if (ret <= 0) {
+     return ret;
+@@ -936,6 +1148,15 @@ int SSL_read(SSL *ssl, void *buf, int num) {
+ 
+ int SSL_peek(SSL *ssl, void *buf, int num) {
+   auto *ssl_impl = FromOpaque(ssl);
++#ifndef NO_GOSTSSL
++  if (gostssl()) {
++    int is_gost;
++    int ret_gost;
++    ret_gost = gostssl_peek(ssl, buf, num, &is_gost);
++    if (is_gost)
++      return ret_gost;
++  }
++#endif  // GOSTSSL
+   if (SSL_is_quic(ssl_impl)) {
+     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+     return -1;
+@@ -957,6 +1178,15 @@ int SSL_peek(SSL *ssl, void *buf, int num) {
+ int SSL_write(SSL *ssl, const void *buf, int num) {
+   auto *ssl_impl = FromOpaque(ssl);
+   ssl_reset_error_state(ssl_impl);
++#ifndef NO_GOSTSSL
++  if (gostssl()) {
++    int is_gost;
++    int ret_gost;
++    ret_gost = gostssl_write(ssl, buf, num, &is_gost);
++    if (is_gost)
++      return ret_gost;
++  }
++#endif  // GOSTSSL
+ 
+   if (SSL_is_quic(ssl_impl)) {
+     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+@@ -1025,6 +1255,15 @@ int SSL_key_update(SSL *ssl, int request_type) {
+ int SSL_shutdown(SSL *ssl) {
+   auto *ssl_impl = FromOpaque(ssl);
+   ssl_reset_error_state(ssl_impl);
++#ifndef NO_GOSTSSL
++  if (gostssl()) {
++    int is_gost;
++    int ret_gost;
++    ret_gost = gostssl_shutdown(ssl, &is_gost);
++    if (is_gost)
++      return ret_gost;
++  }
++#endif  // GOSTSSL
+ 
+   if (ssl_impl->do_handshake == nullptr) {
+     OPENSSL_PUT_ERROR(SSL, SSL_R_UNINITIALIZED);
+@@ -2709,6 +2948,13 @@ EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx) {
+ }
+ 
+ const SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl) {
++#ifndef NO_GOSTSSL
++  const auto *ssl_impl = FromOpaque(ssl);
++  if (ssl_impl->s3->established_session &&
++      ssl_impl->s3->established_session->cipher) {
++    return ssl_impl->s3->established_session->cipher;
++  }
++#endif // GOSTSSL
+   const SSLSession *session = ssl_get_session(FromOpaque(ssl));
+   return session == nullptr ? nullptr : session->cipher;
+ }
